@@ -17,9 +17,13 @@ export const meta = {
 //   refs — absolute path to this skill's references/ dir (21 framework files)
 //   deep — true for high-stakes, hard-to-reverse calls; adds contrarian generator,
 //          tournament, and a war-game loop that runs until risks dry up
-const WS = args.ws
-const REFS = args.refs
-const DEEP = !!args.deep
+// Guard: args can arrive JSON-encoded as a string depending on the caller.
+// Without this, WS/REFS silently become "undefined" and agents improvise paths.
+const A = typeof args === 'string' ? JSON.parse(args) : (args || {})
+if (!A.ws || !A.refs) throw new Error(`Missing required args {ws, refs} — got: ${JSON.stringify(args)}`)
+const WS = A.ws
+const REFS = A.refs
+const DEEP = !!A.deep
 const BRIEF = `${WS}/brief.md`
 
 const common = (role) => `You are the "${role}" teammate on a strategy team. You inherit NO context — read everything yourself.
