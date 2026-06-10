@@ -1,142 +1,121 @@
-MCKINSEY-STRATEGY-TEAM — WHY, HOW, AND WHAT IT'S WORTH
-======================================================
+MCKINSEY-STRATEGY-WORKFLOW — WHY, HOW, AND WHAT IT'S WORTH
+==========================================================
 
 
-IT RUNS LOCALLY, NOT IN THE CLOUD
----------------------------------
-"Agent teams" is an experimental Claude Code feature that runs several Claude
-Code sessions at once on your own machine, so you watch each teammate work
-live. It is not a cloud service. The
-reason to use teams is not "it's cloud" — it's point 1 below.
+THE EXPERIMENT THIS CAME FROM
+-----------------------------
+This repo is the answer to one question: do you actually NEED the experimental
+"agent teams" feature to run the mckinsey-strategy-team skill, or does a plain
+deterministic workflow do the job?
+
+We analyzed the team skill and found that ~90% of it is "spawn agents in
+parallel, wait, read their files". The teammates communicate via FILES, not
+messages; they go idle after writing one file; deep mode even re-spawns them
+instead of reusing them. The team infrastructure was plumbing, not capability.
+So we rebuilt it as a workflow script. This repo is the result.
 
 
 1. WHAT WAS CHOSEN (and why)
 ----------------------------
-An AGENT TEAM with a team lead + a wave of teammates, not a single analysis and
-not the older fire-and-forget subagent approach.
+A DETERMINISTIC WORKFLOW SCRIPT (workflow.js) with the same wave structure as
+the team version, instead of a live agent team.
 
-a) Teams instead of subagents.
-   Two things a team gives you that bare subagents don't: you can STEER a named
-   teammate mid-run (message it, redirect it) instead of waiting for a one-shot
-   to return; and teammates can MESSAGE EACH OTHER to debate (used in deep mode,
-   where two verifiers argue an assumption until only the robust one stands).
-   The default already gets most of the value structurally — divergent option
-   generators and an independent verifier panel — but the live steering and the
-   optional debate are why a team beats a plain workflow here.
+a) Workflow instead of teams.
+   What you gain:
+   - The TALLY RULE AS CODE. The house rule — an assumption >=2 verifiers
+     independently flag as fatal does not survive — was the team lead counting
+     flags by judgment. Here it is four lines of deterministic JavaScript, and
+     the memo agent receives the result as BINDING input. The most important
+     guardrail in the method went from "please remember to do this" to "cannot
+     be skipped".
+   - No experimental flag, no Claude Code version gate, no TeamCreate/TaskCreate/
+     shutdown boilerplate, no "what if teams is off" fallback path.
+   - RESUMABILITY. If a run dies in wave B, resume it: finished agents return
+     cached, only the rest reruns. The team version re-runs waves by hand.
+   - Reproducibility. The same brief gives the same orchestration every time —
+     the lead cannot forget a wave, skip the filter step, or shrink the panel.
 
-b) One team with differentiated roles, not multiple teams.
-   Claude Code allows only one team at a time (no nested teams). So: one team,
-   run in waves, with roles — diagnose, market, two option-generators, and a
-   panel of verifiers that tears the draft apart.
+   What you lose (be honest about it):
+   - Steering a NAMED teammate mid-run (SendMessage). In practice the team
+     version's checkpoints all sat BETWEEN waves at the lead level, so the
+     real steering moments — intake and reviewing the result — survive intact.
+   - The deep-mode teammate-vs-teammate debate. Approximated here by the
+     tournament (three judge lenses) and the war-game loop.
+
+b) Checkpoints move to the edges.
+   A workflow runs unattended once launched — it cannot pause to ask you a
+   question. So the intake got HEAVIER on purpose: everything the lead would
+   have steered mid-run must be in brief.md before launch. The "OK to spawn?"
+   checkpoint becomes "OK to launch?", and iteration happens by editing the
+   brief and RESUMING (cached waves are free).
 
 c) The 21 McKinsey-style frameworks as a REFERENCE LIBRARY inside the skill,
-   not 21 separate skills.
-   Two reasons: (1) 21 stray slash-commands you never call individually is
-   clutter; (2) more important, a teammate does NOT inherit a subagent's skill
-   frontmatter — installing them as skills wouldn't help the teammates anyway.
-   So the teammates just READ the framework files. That always works.
+   not 21 separate skills. Workflow agents inherit nothing, so they READ the
+   framework files. Same choice as the team version, same reason: it always
+   works.
 
-d) The Six Workflow Patterns, wired onto strategy work.
-   (Reference: the "Six Workflow Patterns" — classify-and-act, fan-out-and-
-   synthesize, adversarial verification, generate-and-filter, tournament,
-   loop-until-done.)
-
-   A STANDARD run uses four, in order:
-   1. classify-and-act       — lead picks problem type + frameworks per role.
-   2. fan-out-and-synthesize — wave A (diagnose + market) runs in parallel and
-                               the lead merges; later the draft is synthesized.
-   3. generate-and-filter    — wave B generates DIVERGENT options from opposing
-                               mandates (bull vs lean), then the lead filters
-                               them to a scored shortlist. This is what kills
-                               the old single-"strategy"-teammate false binary.
-   4. adversarial verification — the draft faces a PANEL of verifiers, each a
-                               different lens; a claim >=2 of them call fatal
-                               does not survive. (v1 had a lone red-teamer, so
-                               the headline "debate" was mostly aspirational.)
-
-   DEEP MODE (high-stakes, hard-to-reverse calls) adds the last two:
-   5. tournament      — pairwise-judge the surviving options down to one winner.
-   6. loop-until-done — keep the war-game lens hunting risks until two rounds
-                        turn up nothing new.
-
-   So all six are available; four are on by default, and depth scales to the
-   stakes instead of by habit. (v1 used only the first three and called the rest
-   overkill — that left the headline value, real adversarial pressure, mostly
-   on the table.)
+d) The Six Workflow Patterns, now literally as code.
+   A STANDARD run: classify-and-act (intake), fan-out-and-synthesize (wave A),
+   generate-and-filter (wave B: bull vs lean mandates, then one filter agent),
+   adversarial verification (the panel + the coded tally).
+   DEEP MODE adds: tournament (judges with economics / feasibility / strategic-
+   fit lenses pairwise-judge the shortlist, king-of-the-hill; an overturned
+   draft is re-synthesized) and loop-until-done (war-game rounds until two
+   consecutive rounds surface no new fatal risk, capped at 5).
+   In the team version these patterns were prose instructions; here they are
+   control flow. A pattern that is code cannot be forgotten.
 
 
 2. HOW IT WORKS
 ---------------
-You start it with: "use the strategy team to prepare a decision on X." Then:
+You start it with: "use the strategy workflow to prepare a decision on X."
 
-STEP 0 — Intake. The lead asks a few sharp questions: the real decision
-   question, the audience, the constraints, what's already known. Better
-   context in, better result out.
+STEP 1 — Intake (the checkpoint). The lead pulls the real decision question,
+   audience, output language, constraints, known facts, and confirms standard
+   vs deep mode. Then it shows the plan: "I'll launch with this brief — OK?"
 
-STEP 1 — Classify. The lead picks the problem type (growth stuck? merger?
-   pricing? new market?) and the right frameworks per role, then shows you a
-   short plan ("I'll spawn these teammates with these frameworks — OK?"). That
-   is your steering moment before tokens burn.
+STEP 2 — Brief. All context goes into /tmp/strat-wf-<slug>/brief.md. Workflow
+   agents inherit nothing; the brief is their entire world.
 
-STEP 2 — Workspace. The lead writes all context to one shared file
-   (/tmp/strat-team-<slug>/brief.md). Teammates don't inherit your
-   conversation, so everything flows through that file.
+STEP 3 — Launch. One Workflow call with {ws, refs, deep}. Then, unattended:
 
-STEP 3 — Wave A: diagnose + market. The lead opens the team (TeamCreate) and
-   spawns two teammates IN PARALLEL — one diagnoses the situation, one maps the
-   market and competition. Each reads the brief + its frameworks and writes to
-   its own file. These two are the factual floor; options come next, not now.
-   You can message any teammate mid-run to steer it.
+   WAVE A    diagnose + market in parallel. The factual floor. Options are
+             deliberately NOT generated here — they must stand on findings.
+   WAVE B    option-bull (maximize upside) and option-lean (cheapest
+             reversible path) generate 2-3 options each, with "what must be
+             true". Deep mode adds option-contrarian (consensus forbidden).
+             Structured output, schema-enforced.
+   FILTER    one agent dedupes, drops dominated options, scores survivors,
+             picks a recommendation, numbers the assumptions A1..An.
+   TOURNAMENT (deep, 3+ survivors) judges pairwise-compare champion vs each
+             challenger; 2-of-3 votes overturns the draft.
+   PANEL     verify-assumptions, verify-wargame, verify-execution attack the
+             draft in parallel and return fatal assumption IDs via schema.
+   TALLY     code counts the flags. >=2 independent flags = fatal = must be
+             fixed, hedged, or the recommendation changes. Binding.
+   RISK LOOP (deep) extra war-game rounds until two consecutive rounds find
+             no new fatal risk.
+   MEMO      decision question, Pyramid recommendation, option trade-off
+             table, risks + mitigations (tally-fatal marked), first 90 days,
+             a 60-second spoken story, 3 hostile-Q&A answers.
 
-STEP 4 — Wave B: options (generate-and-filter). Two generators run with
-   OPPOSING mandates — "bull" (maximize upside) and "lean" (maximize resilience)
-   — each reading the diagnose + market files so the options stand on real
-   findings. Each proposes 2-3 distinct options with "what must be true". The
-   lead then filters: dedupe, drop the dominated ones, score the rest against
-   the decision criteria, and keep the 2-3 strongest. (Deep mode adds a
-   contrarian generator for wider divergence.)
-
-STEP 5 — Synthesis. The lead picks the recommended option and builds a draft
-   using the Pyramid Principle (governing thought -> 3 arguments -> backing),
-   naming the load-bearing assumptions explicitly — the panel attacks those.
-
-STEP 6 — Pressure-test (the core). Only NOW does the lead spawn a PANEL of
-   verifiers, each with a different lens — assumptions, war-game, execution &
-   economics. Their job is NOT to confirm but to REFUTE. The rule that makes it
-   robust: a claim that >=2 of the panel independently call fatal does not
-   survive — it gets fixed, hedged, or the recommendation changes. (Deep mode
-   loops the war-game lens until risks run dry, and runs a tournament to pick
-   between options that are still close.)
-
-STEP 7 — Deliverable. The lead folds the surviving critique in and ships a
-   board-ready decision memo + narrative: decision question, recommendation,
-   options with trade-offs, business case, top risks + mitigations, first 90
-   days, and a 60-second story with hostile Q&A. Written to a durable file so
-   you can take it into the meeting.
-
-STEP 8 — Cleanup. The lead shuts the teammates down and cleans up the team.
+STEP 4 — Deliver. The lead reports the recommendation + which assumptions
+   died, copies the memo to a durable path, and offers a resume-based
+   iteration if you want changes.
 
 
 3. WHAT IT'S WORTH
 ------------------
-- An analysis that SURVIVES the meeting. Not just advice, but advice run through
-  a panel of hostile verifiers where a weakness two of them agree on doesn't get
-  to slide. You know the weak spots before anyone in the room finds them.
+- The same thing the team version is worth — an analysis that SURVIVES the
+  meeting, structure on a fuzzy question, parallel depth, a shareable memo —
+  MINUS the experimental-feature tax, PLUS a guardrail that physically cannot
+  be skipped and runs that can be resumed and reproduced.
 
-- Structure on a vague or large question. A merger or strategy question gets
-  split into diagnose / market / competing-options / risk, each with a proven
-  method — instead of one lump of gut feel.
+- A clean A/B answer to "do I need agent teams for this?": no, not for this
+  shape of work. Keep the team version when you want to watch named teammates
+  live and steer them mid-run; use this one when you want the engagement to
+  just run, identically, every time.
 
-- Speed and depth at once. A team of "consultants" works in parallel waves in
-  minutes, not a sequential session over hours. And you can steer live.
-
-- A concrete, shareable deliverable: a decision memo you put straight into a
-  leadership or board meeting.
-
-- Reusable and portable. It's one self-contained folder you can hand to a
-  colleague as-is.
-
-COST / WHEN NOT. A standard run is ~7 live sessions across its waves (more in
-deep mode), so noticeably more tokens than an ordinary chat. Use it for real
-decisions, not a quick question, and default to standard mode unless the call is
-genuinely high-stakes. For a single framework, load that framework directly.
+COST / WHEN NOT. A standard run is ~8 agents, deep mode ~15+ — noticeably more
+tokens than an ordinary chat. Use it for real decisions, not a quick question.
+For a single framework, read that framework file directly.
