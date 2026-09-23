@@ -67,9 +67,8 @@ The workflow runs unattended once launched, so pull ALL context now:
 ### Step 2 — Workspace + brief
 1. Slug the topic, `mkdir -p /tmp/strat-wf-<slug>/`.
 2. Write `/tmp/strat-wf-<slug>/brief.md` with ALL intake context: decision question, audience,
-   **output language**, constraints, known facts (mark assumptions explicitly), run mode, and a
-   line-budget hint (~80 lines per teammate output). Workflow agents inherit nothing — the brief
-   is their entire world.
+   **output language**, constraints, known facts (mark assumptions explicitly) and run mode.
+   Workflow agents inherit nothing — the brief is their entire world.
 
 ### Step 3 — Resolve the skill root (critical for portability)
 The skill may be installed user-level *or* per-project; keep the first that resolves:

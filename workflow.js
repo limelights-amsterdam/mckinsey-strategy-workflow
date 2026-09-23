@@ -29,7 +29,7 @@ const BRIEF = `${WS}/brief.md`
 const common = (role) => `You are the "${role}" teammate on a strategy team. You inherit NO context — read everything yourself.
 1. First read the shared brief: ${BRIEF}
 2. Apply your framework(s) strictly to THIS question. No generic theory — concrete findings, explicit assumptions where data is missing.
-3. Write compactly (max ~80 lines), in the output language the brief specifies.`
+3. Write for the teammates who read your file next: findings first, each with its evidence, in the output language the brief specifies.`
 
 // ── Wave A: diagnose + market (true barrier: wave B needs both) ──────────────
 phase('Wave A')
@@ -210,7 +210,7 @@ Frameworks: ${REFS}/06-alignment-and-executive-communication/decision-memo.md an
 TALLY RESULT (counted deterministically across the panel — this is binding):
 - Assumptions flagged fatal by ≥2 independent verifiers: ${fatal.length ? fatal.join(', ') : 'none'} → these MUST be fixed, hedged, or the recommendation changes.
 - Flagged by exactly one verifier: ${flaggedOnce.length ? flaggedOnce.join(', ') : 'none'} → list as risks with mitigations.${DEEP ? `\n- Extra risks from the war-game loop (JSON): ${JSON.stringify(loopRisks)}` : ''}
-Write the final decision memo to ${WS}/decision-memo.md with: decision question, recommendation (Pyramid: governing thought + 3 arguments), option trade-off table, top risks + mitigations (mark the tally-fatal ones), first 90 days, open questions, and a 60-second spoken version + 3 hostile-Q&A answers. Max ~120 lines, in the output language the brief specifies.
+Write the final decision memo to ${WS}/decision-memo.md with: decision question, recommendation (Pyramid: governing thought + 3 arguments), option trade-off table, top risks + mitigations (mark the tally-fatal ones), first 90 days, open questions, and a 60-second spoken version + 3 hostile-Q&A answers. A board member reads it before the meeting: lead with the answer, keep the reasoning to what supports it. Write it in the output language the brief specifies.
 Return as plain text: the governing thought + whether the recommendation changed because of the tally, and why.`, { label: 'memo-writer', phase: 'Memo' })
 
 return {
